@@ -8,7 +8,7 @@ using LiveSplit.Options;
 
 namespace LiveSplit.ASL
 {
-    public class ASLScript
+    public class ASLScript : IDisposable
     {
         public class Methods
         {
@@ -24,6 +24,11 @@ namespace LiveSplit.ASL
             public ASLMethod reset = no_op;
             public ASLMethod isLoading = no_op;
             public ASLMethod gameTime = no_op;
+            public ASLMethod onStart = no_op;
+            public ASLMethod onReset = no_op;
+            public ASLMethod onSplit = no_op;
+            public ASLMethod onSkipSplit = no_op;
+            public ASLMethod onUndoSplit = no_op;
         }
 
         public event EventHandler<double> RefreshRateChanged;
@@ -88,13 +93,32 @@ namespace LiveSplit.ASL
             _uses_game_time = !_methods.isLoading.IsEmpty || !_methods.gameTime.IsEmpty;
         }
 
+        public void Dispose()
+        {
+            if (_timer != null)
+            {
+                _timer.CurrentState.OnStart -= _timer_CurrentState_OnStart;
+                _timer.CurrentState.OnReset -= _timer_CurrentState_OnReset;
+                _timer.CurrentState.OnSplit -= _timer_CurrentState_OnSplit;
+                _timer.CurrentState.OnSkipSplit -= _timer_CurrentState_OnSkipSplit;
+                _timer.CurrentState.OnUndoSplit -= _timer_CurrentState_OnUndoSplit;
+            }
+        }
+
         // Update the script
         public void Update(LiveSplitState state)
         {
             if (_game == null)
             {
                 if (_timer == null)
+                {
                     _timer = new TimerModel() { CurrentState = state };
+                    _timer.CurrentState.OnStart += _timer_CurrentState_OnStart;
+                    _timer.CurrentState.OnReset += _timer_CurrentState_OnReset;
+                    _timer.CurrentState.OnSplit += _timer_CurrentState_OnSplit;
+                    _timer.CurrentState.OnSkipSplit += _timer_CurrentState_OnSkipSplit;
+                    _timer.CurrentState.OnUndoSplit += _timer_CurrentState_OnUndoSplit;
+                }
                 TryConnect(state);
             }
             else if (_game.HasExited)
@@ -114,7 +138,7 @@ namespace LiveSplit.ASL
         public ASLSettings RunStartup(LiveSplitState state)
         {
             Debug("Running startup");
-            RunNoProcessMethod(_methods.startup, state, true);                                                         
+            RunNoProcessMethod(_methods.startup, state, true);
             return _settings;
         }
 
@@ -123,7 +147,6 @@ namespace LiveSplit.ASL
             Debug("Running shutdown");
             RunMethod(_methods.shutdown, state);
         }
-
 
         private void TryConnect(LiveSplitState state)
         {
@@ -252,6 +275,31 @@ namespace LiveSplit.ASL
                         _timer.Start();
                 }
             }
+        }
+
+        private void _timer_CurrentState_OnStart(object sender, EventArgs e)
+        {
+            RunMethod(_methods.onStart, _timer.CurrentState);
+        }
+
+        private void _timer_CurrentState_OnSplit(object sender, EventArgs e)
+        {
+            RunMethod(_methods.onSplit, _timer.CurrentState);
+        }
+
+        private void _timer_CurrentState_OnReset(object sender, TimerPhase value)
+        {
+            RunMethod(_methods.onReset, _timer.CurrentState);
+        }
+
+        private void _timer_CurrentState_OnSkipSplit(object sender, EventArgs e)
+        {
+            RunMethod(_methods.onSkipSplit, _timer.CurrentState);
+        }
+
+        private void _timer_CurrentState_OnUndoSplit(object sender, EventArgs e)
+        {
+            RunMethod(_methods.onUndoSplit, _timer.CurrentState);
         }
 
         private dynamic RunMethod(ASLMethod method, LiveSplitState state, ref string version)

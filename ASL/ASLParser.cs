@@ -76,6 +76,11 @@ namespace LiveSplit.ASL
                     case "reset": methods.reset = script; break;
                     case "startup": methods.startup = script; break;
                     case "shutdown": methods.shutdown = script; break;
+                    case "onStart": methods.onStart = script; break;
+                    case "onReset": methods.onReset = script; break;
+                    case "onSplit": methods.onSplit = script; break;
+                    case "onSkipSplit": methods.onSkipSplit = script; break;
+                    case "onUndoSplit": methods.onUndoSplit = script; break;
                 }
             }
 

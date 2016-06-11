@@ -58,7 +58,7 @@ namespace LiveSplit.UI.Components
         public override void Dispose()
         {
             ScriptCleanup();
-            
+
             try
             {
                 ScriptChanged?.Invoke(this, EventArgs.Empty);
@@ -195,6 +195,7 @@ namespace LiveSplit.UI.Components
 
                 // Script should no longer be used, even in case of error
                 // (which the ASL shutdown method may contain)
+                Script.Dispose();
                 Script = null;
             }
         }

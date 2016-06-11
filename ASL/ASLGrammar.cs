@@ -30,6 +30,11 @@ namespace LiveSplit.ASL
             var shutdown = new KeyTerm("shutdown", "shutdown");
             var isLoading = new KeyTerm("isLoading", "isLoading");
             var gameTime = new KeyTerm("gameTime", "gameTime");
+            var onStart = new KeyTerm("onStart", "onStart");
+            var onReset = new KeyTerm("onReset", "onReset");
+            var onSplit = new KeyTerm("onSplit", "onSplit");
+            var onSkipSplit = new KeyTerm("onSkipSplit", "onSkipSplit");
+            var onUndoSplit = new KeyTerm("onUndoSplit", "onUndoSplit");
             var comma = ToTerm(",", "comma");
             var semi = ToTerm(";", "semi");
 
@@ -57,7 +62,9 @@ namespace LiveSplit.ASL
             method.Rule = (method_type + "{" + code + "}") | Empty;
             offset_list.Rule = MakePlusRule(offset_list, comma, offset);
             offset.Rule = number;
-            method_type.Rule = init | exit | update | start | split | isLoading | gameTime | reset | startup | shutdown;
+            method_type.Rule = init | exit | startup | shutdown
+                               | update | start | split | isLoading | gameTime | reset
+                               | onStart | onReset | onSplit | onSkipSplit | onUndoSplit;
 
             Root = root;
 
