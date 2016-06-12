@@ -279,27 +279,27 @@ namespace LiveSplit.ASL
 
         private void _timer_CurrentState_OnStart(object sender, EventArgs e)
         {
-            RunMethod(_methods.onStart, _timer.CurrentState);
+            TryRunMethod(_methods.onStart, _timer.CurrentState);
         }
 
         private void _timer_CurrentState_OnSplit(object sender, EventArgs e)
         {
-            RunMethod(_methods.onSplit, _timer.CurrentState);
+            TryRunMethod(_methods.onSplit, _timer.CurrentState);
         }
 
         private void _timer_CurrentState_OnReset(object sender, TimerPhase value)
         {
-            RunMethod(_methods.onReset, _timer.CurrentState);
+            TryRunMethod(_methods.onReset, _timer.CurrentState);
         }
 
         private void _timer_CurrentState_OnSkipSplit(object sender, EventArgs e)
         {
-            RunMethod(_methods.onSkipSplit, _timer.CurrentState);
+            TryRunMethod(_methods.onSkipSplit, _timer.CurrentState);
         }
 
         private void _timer_CurrentState_OnUndoSplit(object sender, EventArgs e)
         {
-            RunMethod(_methods.onUndoSplit, _timer.CurrentState);
+            TryRunMethod(_methods.onUndoSplit, _timer.CurrentState);
         }
 
         private dynamic RunMethod(ASLMethod method, LiveSplitState state, ref string version)
@@ -315,6 +315,20 @@ namespace LiveSplit.ASL
         {
             var version = GameVersion;
             return RunMethod(method, state, ref version);
+        }
+
+        // Run method that catches and logs exceptions. Required for event handlers.
+        private dynamic TryRunMethod(ASLMethod method, LiveSplitState state)
+        {
+            try
+            {
+                return RunMethod(method, state);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
+            return null;
         }
 
         // Run method without counting on being connected to the game (startup/shutdown).
