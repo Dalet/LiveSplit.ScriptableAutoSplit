@@ -1,11 +1,11 @@
-﻿using System;
+﻿using LiveSplit.Model;
+using LiveSplit.Options;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic;
 using System.Linq;
-using LiveSplit.Model;
-using LiveSplit.Options;
 
 namespace LiveSplit.ASL
 {
@@ -30,6 +30,8 @@ namespace LiveSplit.ASL
             public ASLMethod onSplit = no_op;
             public ASLMethod onSkipSplit = no_op;
             public ASLMethod onUndoSplit = no_op;
+            public ASLMethod onPause = no_op;
+            public ASLMethod onResume = no_op;
 
             public ASLMethod[] GetMethods()
             {
@@ -48,8 +50,10 @@ namespace LiveSplit.ASL
                     onStart,
                     onReset,
                     onSplit,
-           	        onSkipSplit,
-                    onUndoSplit
+                    onSkipSplit,
+                    onUndoSplit,
+                    onPause,
+                    onResume
                 };
             }
 
@@ -123,11 +127,14 @@ namespace LiveSplit.ASL
         {
             if (_timer != null)
             {
-                _timer.CurrentState.OnStart -= _timer_CurrentState_OnStart;
-                _timer.CurrentState.OnReset -= _timer_CurrentState_OnReset;
-                _timer.CurrentState.OnSplit -= _timer_CurrentState_OnSplit;
-                _timer.CurrentState.OnSkipSplit -= _timer_CurrentState_OnSkipSplit;
-                _timer.CurrentState.OnUndoSplit -= _timer_CurrentState_OnUndoSplit;
+                var state = _timer.CurrentState;
+                state.OnStart -= State_OnStart;
+                state.OnReset -= State_OnReset;
+                state.OnSplit -= State_OnSplit;
+                state.OnSkipSplit -= State_OnSkipSplit;
+                state.OnUndoSplit -= State_OnUndoSplit;
+                state.OnPause -= State_OnPause;
+                state.OnResume -= State_OnResume;
             }
         }
 
@@ -139,11 +146,13 @@ namespace LiveSplit.ASL
                 if (_timer == null)
                 {
                     _timer = new TimerModel() { CurrentState = state };
-                    _timer.CurrentState.OnStart += _timer_CurrentState_OnStart;
-                    _timer.CurrentState.OnReset += _timer_CurrentState_OnReset;
-                    _timer.CurrentState.OnSplit += _timer_CurrentState_OnSplit;
-                    _timer.CurrentState.OnSkipSplit += _timer_CurrentState_OnSkipSplit;
-                    _timer.CurrentState.OnUndoSplit += _timer_CurrentState_OnUndoSplit;
+                    state.OnStart += State_OnStart;
+                    state.OnReset += State_OnReset;
+                    state.OnSplit += State_OnSplit;
+                    state.OnSkipSplit += State_OnSkipSplit;
+                    state.OnUndoSplit += State_OnUndoSplit;
+                    state.OnPause += State_OnPause;
+                    state.OnResume += State_OnResume;
                 }
                 TryConnect(state);
             }
@@ -303,29 +312,17 @@ namespace LiveSplit.ASL
             }
         }
 
-        private void _timer_CurrentState_OnStart(object sender, EventArgs e)
-        {
-            TryRunMethod(_methods.onStart, _timer.CurrentState);
-        }
+        private void State_OnStart(object sender, EventArgs e) => RunEventMethod(_methods.onStart);
+        private void State_OnSplit(object sender, EventArgs e) => RunEventMethod(_methods.onSplit);
+        private void State_OnReset(object sender, TimerPhase value) => RunEventMethod(_methods.onReset);
+        private void State_OnSkipSplit(object sender, EventArgs e) => RunEventMethod(_methods.onSkipSplit);
+        private void State_OnUndoSplit(object sender, EventArgs e) => RunEventMethod(_methods.onUndoSplit);
+        private void State_OnPause(object sender, EventArgs e) => RunEventMethod(_methods.onPause);
+        private void State_OnResume(object sender, EventArgs e) => RunEventMethod(_methods.onResume);
 
-        private void _timer_CurrentState_OnSplit(object sender, EventArgs e)
+        private void RunEventMethod(ASLMethod method)
         {
-            TryRunMethod(_methods.onSplit, _timer.CurrentState);
-        }
-
-        private void _timer_CurrentState_OnReset(object sender, TimerPhase value)
-        {
-            TryRunMethod(_methods.onReset, _timer.CurrentState);
-        }
-
-        private void _timer_CurrentState_OnSkipSplit(object sender, EventArgs e)
-        {
-            TryRunMethod(_methods.onSkipSplit, _timer.CurrentState);
-        }
-
-        private void _timer_CurrentState_OnUndoSplit(object sender, EventArgs e)
-        {
-            TryRunMethod(_methods.onUndoSplit, _timer.CurrentState);
+            TryRunMethod(method, _timer.CurrentState);
         }
 
         private dynamic RunMethod(ASLMethod method, LiveSplitState state, ref string version)
