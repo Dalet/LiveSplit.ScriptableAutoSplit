@@ -96,6 +96,8 @@ namespace LiveSplit.ASL
                     case "onSplit": methods.onSplit = script; break;
                     case "onSkipSplit": methods.onSkipSplit = script; break;
                     case "onUndoSplit": methods.onUndoSplit = script; break;
+                    case "onPause": methods.onPause = script; break;
+                    case "onResume": methods.onResume = script; break;
                 }
             }
 

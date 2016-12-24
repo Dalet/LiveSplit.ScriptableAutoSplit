@@ -30,6 +30,8 @@ namespace LiveSplit.ASL
             public ASLMethod onSplit = no_op;
             public ASLMethod onSkipSplit = no_op;
             public ASLMethod onUndoSplit = no_op;
+            public ASLMethod onPause = no_op;
+            public ASLMethod onResume = no_op;
 
             public ASLMethod[] GetMethods()
             {
@@ -48,8 +50,10 @@ namespace LiveSplit.ASL
                     onStart,
                     onReset,
                     onSplit,
-           	        onSkipSplit,
-                    onUndoSplit
+                    onSkipSplit,
+                    onUndoSplit,
+                    onPause,
+                    onResume
                 };
             }
 
@@ -91,6 +95,7 @@ namespace LiveSplit.ASL
 
         private bool _uses_game_time;
         private bool _init_completed;
+        private event EventHandler<LiveSplitState> _timer_events;
 
         private ASLSettings _settings;
 
@@ -123,11 +128,13 @@ namespace LiveSplit.ASL
         {
             if (_timer != null)
             {
-                _timer.CurrentState.OnStart -= _timer_CurrentState_OnStart;
-                _timer.CurrentState.OnReset -= _timer_CurrentState_OnReset;
-                _timer.CurrentState.OnSplit -= _timer_CurrentState_OnSplit;
-                _timer.CurrentState.OnSkipSplit -= _timer_CurrentState_OnSkipSplit;
-                _timer.CurrentState.OnUndoSplit -= _timer_CurrentState_OnUndoSplit;
+                _timer.CurrentState.OnStart -= State_OnStart;
+                _timer.CurrentState.OnReset -= State_OnReset;
+                _timer.CurrentState.OnSplit -= State_OnSplit;
+                _timer.CurrentState.OnSkipSplit -= State_OnSkipSplit;
+                _timer.CurrentState.OnUndoSplit -= State_OnUndoSplit;
+                _timer.CurrentState.OnPause -= State_OnPause;
+                _timer.CurrentState.OnResume -= State_OnResume;
             }
         }
 
@@ -139,17 +146,20 @@ namespace LiveSplit.ASL
                 if (_timer == null)
                 {
                     _timer = new TimerModel() { CurrentState = state };
-                    _timer.CurrentState.OnStart += _timer_CurrentState_OnStart;
-                    _timer.CurrentState.OnReset += _timer_CurrentState_OnReset;
-                    _timer.CurrentState.OnSplit += _timer_CurrentState_OnSplit;
-                    _timer.CurrentState.OnSkipSplit += _timer_CurrentState_OnSkipSplit;
-                    _timer.CurrentState.OnUndoSplit += _timer_CurrentState_OnUndoSplit;
+                    state.OnStart += State_OnStart;
+                    state.OnReset += State_OnReset;
+                    state.OnSplit += State_OnSplit;
+                    state.OnSkipSplit += State_OnSkipSplit;
+                    state.OnUndoSplit += State_OnUndoSplit;
+                    state.OnPause += State_OnPause;
+                    state.OnResume += State_OnResume;
                 }
                 TryConnect(state);
             }
             else if (_game.HasExited)
             {
                 DoExit(state);
+                RunEvents(state);
             }
             else
             {
@@ -215,6 +225,7 @@ namespace LiveSplit.ASL
             State.RefreshValues(_game);
             OldState = State;
             GameVersion = string.Empty;
+            _timer_events = null; // clear events
 
             // Fetch version from init-method
             var ver = string.Empty;
@@ -262,6 +273,7 @@ namespace LiveSplit.ASL
         {
             OldState = State.RefreshValues(_game);
 
+            RunEvents(state);
             if (!(RunMethod(_methods.update, state) ?? true))
             {
                 // If Update explicitly returns false, don't run anything else
@@ -273,59 +285,65 @@ namespace LiveSplit.ASL
                 if (_uses_game_time && !state.IsGameTimeInitialized)
                     _timer.InitializeGameTime();
 
+                RunEvents(state);
                 var is_paused = RunMethod(_methods.isLoading, state);
                 if (is_paused != null)
                     state.IsGameTimePaused = is_paused;
 
+                RunEvents(state);
                 var game_time = RunMethod(_methods.gameTime, state);
                 if (game_time != null)
                     state.SetGameTime(game_time);
 
+                RunEvents(state);
                 if (RunMethod(_methods.reset, state) ?? false)
                 {
                     if (_settings.GetBasicSettingValue("reset"))
                         _timer.Reset();
                 }
-                else if (RunMethod(_methods.split, state) ?? false)
+                else
                 {
-                    if (_settings.GetBasicSettingValue("split"))
-                        _timer.Split();
+                    RunEvents(state);
+                    if (RunMethod(_methods.split, state) ?? false)
+                    {
+                        if (_settings.GetBasicSettingValue("split"))
+                            _timer.Split();
+                    }
                 }
             }
 
             if (state.CurrentPhase == TimerPhase.NotRunning)
             {
+                RunEvents(state);
                 if (RunMethod(_methods.start, state) ?? false)
                 {
                     if (_settings.GetBasicSettingValue("start"))
                         _timer.Start();
                 }
             }
+
+            RunEvents(state);
         }
 
-        private void _timer_CurrentState_OnStart(object sender, EventArgs e)
+        private void State_OnStart(object sender, EventArgs e) => QueueEventMethod(_methods.onStart);
+        private void State_OnSplit(object sender, EventArgs e) => QueueEventMethod(_methods.onSplit);
+        private void State_OnReset(object sender, TimerPhase value) => QueueEventMethod(_methods.onReset);
+        private void State_OnSkipSplit(object sender, EventArgs e) => QueueEventMethod(_methods.onSkipSplit);
+        private void State_OnUndoSplit(object sender, EventArgs e) => QueueEventMethod(_methods.onUndoSplit);
+        private void State_OnPause(object sender, EventArgs e) => QueueEventMethod(_methods.onPause);
+        private void State_OnResume(object sender, EventArgs e) => QueueEventMethod(_methods.onResume);
+
+        private void QueueEventMethod(ASLMethod method)
         {
-            TryRunMethod(_methods.onStart, _timer.CurrentState);
+            if (!_init_completed || method.IsEmpty)
+                return;
+            _timer_events += (s, state) => RunMethod(method, state);
         }
 
-        private void _timer_CurrentState_OnSplit(object sender, EventArgs e)
+        private void RunEvents(LiveSplitState state)
         {
-            TryRunMethod(_methods.onSplit, _timer.CurrentState);
-        }
-
-        private void _timer_CurrentState_OnReset(object sender, TimerPhase value)
-        {
-            TryRunMethod(_methods.onReset, _timer.CurrentState);
-        }
-
-        private void _timer_CurrentState_OnSkipSplit(object sender, EventArgs e)
-        {
-            TryRunMethod(_methods.onSkipSplit, _timer.CurrentState);
-        }
-
-        private void _timer_CurrentState_OnUndoSplit(object sender, EventArgs e)
-        {
-            TryRunMethod(_methods.onUndoSplit, _timer.CurrentState);
+            _timer_events?.Invoke(null, state);
+            _timer_events = null; // clear events
         }
 
         private dynamic RunMethod(ASLMethod method, LiveSplitState state, ref string version)
@@ -341,20 +359,6 @@ namespace LiveSplit.ASL
         {
             var version = GameVersion;
             return RunMethod(method, state, ref version);
-        }
-
-        // Run method that catches and logs exceptions. Required for event handlers.
-        private dynamic TryRunMethod(ASLMethod method, LiveSplitState state)
-        {
-            try
-            {
-                return RunMethod(method, state);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex);
-            }
-            return null;
         }
 
         // Run method without counting on being connected to the game (startup/shutdown).

@@ -20,21 +20,26 @@ namespace LiveSplit.ASL
             NonGrammarTerminals.Add(delimited_comment);
 
             var state = new KeyTerm("state", "state");
-            var init = new KeyTerm("init", "init");
-            var exit = new KeyTerm("exit", "exit");
-            var update = new KeyTerm("update", "update");
-            var start = new KeyTerm("start", "start");
-            var split = new KeyTerm("split", "split");
-            var reset = new KeyTerm("reset", "reset");
-            var startup = new KeyTerm("startup", "startup");
-            var shutdown = new KeyTerm("shutdown", "shutdown");
-            var isLoading = new KeyTerm("isLoading", "isLoading");
-            var gameTime = new KeyTerm("gameTime", "gameTime");
-            var onStart = new KeyTerm("onStart", "onStart");
-            var onReset = new KeyTerm("onReset", "onReset");
-            var onSplit = new KeyTerm("onSplit", "onSplit");
-            var onSkipSplit = new KeyTerm("onSkipSplit", "onSkipSplit");
-            var onUndoSplit = new KeyTerm("onUndoSplit", "onUndoSplit");
+            var method_terms = new string[]
+            {
+                "init",
+                "exit",
+                "update",
+                "start",
+                "split",
+                "reset",
+                "startup",
+                "shutdown",
+                "isLoading",
+                "gameTime",
+                "onStart",
+                "onReset",
+                "onSplit",
+                "onSkipSplit",
+                "onUndoSplit",
+                "onPause",
+                "onResume"
+            };
             var comma = ToTerm(",", "comma");
             var semi = ToTerm(";", "semi");
 
@@ -62,9 +67,10 @@ namespace LiveSplit.ASL
             method.Rule = (method_type + "{" + code + "}") | Empty;
             offset_list.Rule = MakePlusRule(offset_list, comma, offset);
             offset.Rule = number;
-            method_type.Rule = init | exit | startup | shutdown
-                               | update | start | split | isLoading | gameTime | reset
-                               | onStart | onReset | onSplit | onSkipSplit | onUndoSplit;
+
+            method_type.Rule = new BnfExpression();
+            foreach (var method_term in method_terms)
+                method_type.Rule |= new KeyTerm(method_term, method_term);
 
             Root = root;
 
