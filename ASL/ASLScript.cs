@@ -46,10 +46,10 @@ namespace LiveSplit.ASL
                     isLoading,
                     gameTime,
                     onStart,
-            		onReset,
-            		onSplit,
-           			 onSkipSplit,
-            		onUndoSplit
+                    onReset,
+                    onSplit,
+           	        onSkipSplit,
+                    onUndoSplit
                 };
             }
 
